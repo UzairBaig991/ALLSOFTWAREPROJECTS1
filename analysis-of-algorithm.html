@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find the Number</title>
+    <style>
+        body {
+            font-family: 'Arial', 'Verdana', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: linear-gradient(135deg, #b3e5fc, #c8e6c9);
+            margin: 0;
+            color: #333;
+        }
+        h1 {
+            font-family: 'Verdana', sans-serif;
+            font-size: 36px;
+            color: #0288d1;
+            margin: 20px;
+        }
+        #game {
+            width: 450px;
+            background: #fff3e0;
+            border: 3px solid #4caf50;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        #secret {
+            font-size: 60px;
+            margin: 15px;
+            color: #0288d1;
+            transition: transform 0.3s;
+        }
+        #secret.wrong {
+            animation: shake 0.3s;
+        }
+        #secret.correct {
+            animation: bounce 0.5s;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+        #guess-input {
+            padding: 10px;
+            font-size: 18px;
+            border-radius: 8px;
+            border: 2px solid #4caf50;
+            margin: 10px;
+            width: 100px;
+            background: #ffffff;
+        }
+        #feedback, #complexity-display {
+            margin: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            min-height: 24px;
+        }
+        .feedback-correct { color: #2e7d32; }
+        .feedback-high { color: #d32f2f; }
+        .feedback-low { color: #0288d1; }
+        .complexity-text { color: #d32f2f; }
+        button {
+            background-color: #4caf50;
+            color: #ffffff;
+            font-family: 'Arial', sans-serif;
+            font-size: 16px;
+            padding: 8px 16px;
+            margin: 5px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.3s, transform 0.2s;
+            display: inline-block;
+        }
+        button:hover:not(:disabled) {
+            background-color: #388e3c;
+            transform: scale(1.05);
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        #info {
+            margin: 10px;
+            font-size: 16px;
+            color: #333;
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        #progress-container {
+            width: 400px;
+            height: 15px;
+            background: #e0e0e0;
+            margin: 10px auto;
+            border-radius: 8px;
+            position: relative;
+        }
+        #progress {
+            height: 100%;
+            background: #4caf50;
+            transition: width 0.3s;
+            border-radius: 8px;
+        }
+        #progress-label {
+            position: absolute;
+            top: -20px;
+            left: 0;
+            font-size: 14px;
+            color: #333;
+        }
+        #result {
+            font-size: 20px;
+            color: #2e7d32;
+            margin: 15px;
+        }
+        #prompt {
+            font-size: 16px;
+            color: #333;
+            margin: 10px;
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        #history {
+            display: none;
+            margin: 10px;
+            padding: 10px;
+            background: #ffffff;
+            border: 2px solid #4caf50;
+            border-radius: 8px;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+        #history div {
+            font-size: 14px;
+            color: #333;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #fff3e0;
+            padding: 20px;
+            border: 3px solid #4caf50;
+            border-radius: 15px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.3);
+            z-index: 2;
+            max-width: 400px;
+        }
+        .modal h3 {
+            color: #0288d1;
+            margin-top: 0;
+        }
+        select, input[type="number"] {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: 2px solid #4caf50;
+            margin: 5px;
+            background: #ffffff;
+        }
+        #complexity-chart {
+            width: 100%;
+            height: 150px;
+            border: 2px solid #4caf50;
+            margin: 10px 0;
+            background: #ffffff;
+        }
+        #calc-result {
+            font-size: 16px;
+            color: #d32f2f;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Find the Number</h1>
+    <div id="prompt">Pick a number to guess the secret number!</div>
+    <div id="game">
+        <div id="secret" aria-label="Secret number">?</div>
+        <select id="guess-input" aria-label="Select your guess"></select>
+        <div id="feedback"></div>
+        <div id="complexity-display" aria-label="Time complexity"></div>
+        <button onclick="submitGuess()" id="submitBtn" title="Check your guess" aria-label="Submit guess">Guess!</button>
+        <button onclick="startAuto()" id="autoBtn" title="Computer guesses" aria-label="Start auto-solve">Auto-Solve</button>
+        <button onclick="showModal('optionsModal')" title="Change settings" aria-label="Open options">Options</button>
+        <button onclick="showModal('complexityModal')" title="View complexity" aria-label="View complexity">Complexity</button>
+        <button onclick="getHint()" id="hintBtn" title="Get a hint (costs 1 guess)" aria-label="Get hint">Hint</button>
+        <button onclick="toggleHistory()" title="Show/hide guesses" aria-label="Toggle history">History</button>
+        <button onclick="reset()" id="resetBtn" title="Start new game" aria-label="Start new game">New Game</button>
+        <button onclick="resetScore()" title="Reset wins/losses" aria-label="Reset score">Reset Score</button>
+    </div>
+    <div id="info">Guesses: <span id="guessCount">0</span> | Time: <span id="time">0s</span> | Score: <span id="score">0/0</span></div>
+    <div id="progress-container">
+        <div id="progress"></div>
+        <span id="progress-label">Progress: 0/5 guesses</span>
+    </div>
+    <div id="history"></div>
+    <div id="result"></div>
+
+    <div id="optionsModal" class="modal">
+        <h3>Game Options</h3>
+        <label for="mode">Mode:</label>
+        <select id="mode" aria-label="Select mode">
+            <option value="player">Player</option>
+            <option value="auto">Auto-Solve</option>
+        </select><br>
+        <label for="speed">Auto Speed:</label>
+        <select id="speed" aria-label="Select speed">
+            <option value="1000">Slow (1s)</option>
+            <option value="500">Medium (0.5s)</option>
+            <option value="250">Fast (0.25s)</option>
+        </select><br>
+        <label for="difficulty">Difficulty:</label>
+        <select id="difficulty" aria-label="Select difficulty">
+            <option value="easy">Easy (1–10, 5 guesses)</option>
+            <option value="medium">Medium (1–15, 4 guesses)</option>
+            <option value="hard">Hard (1–20, 3 guesses)</option>
+        </select><br>
+        <button onclick="saveOptions()" aria-label="Save options">Save</button>
+        <button onclick="hideModal('optionsModal')" style="background:#d32f2f;" aria-label="Close options">Close</button>
+    </div>
+
+    <div id="complexityModal" class="modal">
+        <h3>O(1) Complexity</h3>
+        <p>The game uses a Direct Comparison Algorithm with O(1) time complexity per guess. Each guess takes one comparison, regardless of the number of guesses or range.</p>
+        <p>Algorithm: Compare guess to secret number.</p>
+        <p>Steps per Guess: 1 (Constant, O(1)).</p>
+        <canvas id="complexity-chart"></canvas>
+        <div>
+            <label for="comparisons">Comparisons:</label>
+            <input type="number" id="comparisons" min="1" max="1" value="1" aria-label="Enter comparisons">
+            <button onclick="calculateSteps()" aria-label="Calculate steps">Calculate</button>
+        </div>
+        <div id="calc-result"></div>
+        <button onclick="hideModal('complexityModal')" style="background:#d32f2f;" aria-label="Close complexity">Close</button>
+    </div>
+
+    <script>
+        let secretNumber = 0;
+        let guessCount = 0;
+        let maxGuesses = 5;
+        let maxNumber = 10;
+        let startTime = 0;
+        let isRunning = false;
+        let lastGuessTime = 0;
+        const debounceDelay = 200;
+        let wins = 0;
+        let losses = 0;
+        let history = [];
+
+        function init() {
+            console.log("Initialized game");
+            const savedState = JSON.parse(localStorage.getItem('gameState') || '{}');
+            secretNumber = savedState.secretNumber || Math.floor(Math.random() * maxNumber) + 1;
+            guessCount = savedState.guessCount || 0;
+            startTime = savedState.startTime || performance.now();
+            wins = savedState.wins || 0;
+            losses = savedState.losses || 0;
+            history = savedState.history || [];
+            isRunning = false;
+            document.getElementById('guess-input').innerHTML = '<option value="">Pick a number</option>' + 
+                Array.from({length: maxNumber}, (_, i) => `<option value="${i+1}">${i+1}</option>`).join('');
+            document.getElementById('result').textContent = savedState.result || '';
+            document.getElementById('feedback').innerHTML = savedState.feedback || '';
+            document.getElementById('complexity-display').innerHTML = savedState.complexity || '';
+            document.getElementById('secret').textContent = savedState.secret || '?';
+            document.getElementById('secret').className = '';
+            document.getElementById('submitBtn').disabled = false;
+            document.getElementById('autoBtn').disabled = false;
+            document.getElementById('mode').value = savedState.mode || 'player';
+            document.getElementById('speed').value = savedState.speed || '500';
+            document.getElementById('difficulty').value = savedState.difficulty || 'easy';
+            updateInfo();
+            updateProgress();
+            updateHistory();
+            if (savedState.isGameOver) endGame();
+
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('newGame') === 'true') {
+                secretNumber = Math.floor(Math.random() * maxNumber) + 1;
+                guessCount = 0;
+                startTime = performance.now();
+                history = [];
+                document.getElementById('result').textContent = '';
+                document.getElementById('feedback').innerHTML = '';
+                document.getElementById('complexity-display').innerHTML = '';
+                document.getElementById('secret').textContent = '?';
+                document.getElementById('secret').className = '';
+                localStorage.removeItem('gameState');
+            }
+
+            console.log("Secret number:", secretNumber);
+        }
+
+        function saveState() {
+            const state = {
+                secretNumber,
+                guessCount,
+                startTime,
+                wins,
+                losses,
+                history,
+                result: document.getElementById('result').textContent,
+                feedback: document.getElementById('feedback').innerHTML,
+                complexity: document.getElementById('complexity-display').innerHTML,
+                secret: document.getElementById('secret').textContent,
+                mode: document.getElementById('mode').value,
+                speed: document.getElementById('speed').value,
+                difficulty: document.getElementById('difficulty').value,
+                isGameOver: document.getElementById('submitBtn').disabled && !isRunning
+            };
+            localStorage.setItem('gameState', JSON.stringify(state));
+        }
+
+        function checkGuess(guess) {
+            console.log("Checking guess in O(1) time");
+            if (guess === secretNumber) {
+                return { feedback: "[Beep!] Correct!", isWin: true, class: 'feedback-correct' };
+            } else if (guess < secretNumber) {
+                return { feedback: "[Bop!] Too low!", isWin: false, class: 'feedback-low' };
+            } else {
+                return { feedback: "[Buzz!] Too high!", isWin: false, class: 'feedback-high' };
+            }
+        }
+
+        function submitGuess() {
+            const now = Date.now();
+            if (isRunning || now - lastGuessTime < debounceDelay) {
+                console.log("Submit blocked: Running or debounced");
+                return;
+            }
+            lastGuessTime = now;
+            const mode = document.getElementById('mode').value;
+            if (mode === 'auto') {
+                document.getElementById('feedback').textContent = "Switch to Player mode in Options!";
+                document.getElementById('complexity-display').innerHTML = '';
+                showModal('optionsModal');
+                return;
+            }
+            const guess = parseInt(document.getElementById('guess-input').value);
+            if (isNaN(guess)) {
+                document.getElementById('feedback').textContent = "Please pick a number!";
+                document.getElementById('complexity-display').innerHTML = '';
+                return;
+            }
+            guessCount++;
+            const { feedback, isWin, class: feedbackClass } = checkGuess(guess);
+            document.getElementById('feedback').innerHTML = `<div class="${feedbackClass}">${feedback}</div>`;
+            document.getElementById('complexity-display').innerHTML = `<div class="complexity-text">Guess Complexity: O(1) (1 comparison for guess ${guessCount})</div>`;
+            document.getElementById('secret').className = isWin ? 'correct' : 'wrong';
+            history.push(`Guess ${guessCount}: ${guess} - ${feedback}`);
+            updateHistory();
+
+            if (isWin) {
+                wins++;
+                document.getElementById('secret').textContent = secretNumber;
+                document.getElementById('result').textContent = `You won! Number: ${secretNumber}. Click "New Game"!`;
+                endGame();
+            } else if (guessCount >= maxGuesses) {
+                losses++;
+                document.getElementById('secret').textContent = secretNumber;
+                document.getElementById('result').textContent = `Game Over! Number: ${secretNumber}. Click "New Game"!`;
+                endGame();
+            }
+
+            updateInfo();
+            updateProgress();
+            saveState();
+            console.log("Guess:", guess, "Feedback:", feedback);
+        }
+
+        async function startAuto() {
+            const mode = document.getElementById('mode').value;
+            if (mode !== 'auto') {
+                document.getElementById('feedback').textContent = "Set mode to Auto-Solve in Options!";
+                document.getElementById('complexity-display').innerHTML = '';
+                showModal('optionsModal');
+                return;
+            }
+            if (isRunning) {
+                console.log("Auto blocked: Running");
+                return;
+            }
+            console.log("Starting auto-solve");
+            isRunning = true;
+            document.querySelectorAll('button').forEach(btn => btn.disabled = true);
+            document.getElementById('resetBtn').disabled = false;
+            guessCount = 0;
+            history = [];
+            document.getElementById('feedback').innerHTML = '';
+            document.getElementById('complexity-display').innerHTML = '';
+            updateHistory();
+
+            const animationSpeed = parseInt(document.getElementById('speed').value);
+            while (guessCount < maxGuesses) {
+                guessCount++;
+                const guess = Math.floor(Math.random() * maxNumber) + 1;
+                document.getElementById('guess-input').value = guess;
+                const { feedback, isWin, class: feedbackClass } = checkGuess(guess);
+                document.getElementById('feedback').innerHTML = `<div class="${feedbackClass}">${feedback}</div>`;
+                document.getElementById('complexity-display').innerHTML = `<div class="complexity-text">Guess Complexity: O(1) (1 comparison for guess ${guessCount})</div>`;
+                document.getElementById('secret').className = isWin ? 'correct' : 'wrong';
+                history.push(`Guess ${guessCount}: ${guess} - ${feedback}`);
+                updateHistory();
+
+                if (isWin) {
+                    wins++;
+                    document.getElementById('secret').textContent = secretNumber;
+                    document.getElementById('result').textContent = `Auto-Solve won! Number: ${secretNumber}. Click "New Game"!`;
+                    endGame();
+                    break;
+                }
+
+                updateInfo();
+                updateProgress();
+                saveState();
+                await new Promise(resolve => setTimeout(resolve, animationSpeed));
+            }
+
+            if (guessCount >= maxGuesses) {
+                losses++;
+                document.getElementById('secret').textContent = secretNumber;
+                document.getElementById('result').textContent = `Auto-Solve failed! Number: ${secretNumber}. Click "New Game"!`;
+                endGame();
+            }
+        }
+
+        function getHint() {
+            if (isRunning || guessCount >= maxGuesses) return;
+            guessCount++;
+            const hint = secretNumber % 2 === 0 ? "[Hint!] Number is even." : "[Hint!] Number is odd.";
+            document.getElementById('feedback').innerHTML = `<div class="feedback-low">${hint}</div>`;
+            document.getElementById('complexity-display').innerHTML = '';
+            history.push(`Hint: ${hint}`);
+            updateHistory();
+            updateProgress();
+            if (guessCount >= maxGuesses) {
+                losses++;
+                document.getElementById('secret').textContent = secretNumber;
+                document.getElementById('result').textContent = `Game Over! Number: ${secretNumber}. Click "New Game"!`;
+                endGame();
+            }
+            saveState();
+            console.log("Hint given:", hint);
+        }
+
+        function endGame() {
+            isRunning = false;
+            document.querySelectorAll('button').forEach(btn => btn.disabled = false);
+            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('autoBtn').disabled = false;
+            document.getElementById('hintBtn').disabled = true;
+            saveState();
+            console.log("Game ended");
+        }
+
+        function updateInfo() {
+            const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+            document.getElementById('guessCount').textContent = guessCount;
+            document.getElementById('time').textContent = elapsed + 's';
+            document.getElementById('score').textContent = `${wins}/${losses}`;
+        }
+
+        function updateProgress() {
+            const percentage = (guessCount / maxGuesses) * 100;
+            document.getElementById('progress').style.width = `${percentage}%`;
+            document.getElementById('progress-label').textContent = `Progress: ${guessCount}/${maxGuesses} guesses`;
+            document.getElementById('prompt').textContent = `Pick a number (1–${maxNumber}) to guess the secret number!`;
+        }
+
+        function updateHistory() {
+            const historyDiv = document.getElementById('history');
+            historyDiv.innerHTML = history.map(h => `<div>${h}</div>`).join('');
+        }
+
+        function toggleHistory() {
+            const historyDiv = document.getElementById('history');
+            historyDiv.style.display = historyDiv.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function reset() {
+            console.log("Starting new game");
+            localStorage.removeItem('gameState');
+            document.getElementById('complexity-display').innerHTML = '';
+            init();
+        }
+
+        function resetScore() {
+            wins = 0;
+            losses = 0;
+            updateInfo();
+            saveState();
+            console.log("Score reset");
+        }
+
+        function saveOptions() {
+            const difficulty = document.getElementById('difficulty').value;
+            if (difficulty === 'easy') {
+                maxNumber = 10;
+                maxGuesses = 5;
+            } else if (difficulty === 'medium') {
+                maxNumber = 15;
+                maxGuesses = 4;
+            } else {
+                maxNumber = 20;
+                maxGuesses = 3;
+            }
+            reset();
+            hideModal('optionsModal');
+            console.log("Options saved: difficulty =", difficulty);
+        }
+
+        function showModal(id) {
+            document.getElementById(id).style.display = 'block';
+        }
+
+        function hideModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        function drawChart(n) {
+            const canvas = document.getElementById('complexity-chart');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 350;
+            canvas.height = 150;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.beginPath();
+            ctx.moveTo(30, 120);
+            ctx.lineTo(320, 120);
+            ctx.moveTo(30, 120);
+            ctx.lineTo(30, 20);
+            ctx.strokeStyle = '#333';
+            ctx.stroke();
+
+            ctx.fillText('Input Size', 150, 140);
+            ctx.fillText('Steps', 10, 30);
+
+            ctx.fillText('1', 30, 130);
+            ctx.fillText('1', 20, 100);
+
+            ctx.beginPath();
+            ctx.strokeStyle = '#d32f2f';
+            ctx.lineWidth = 2;
+            ctx.moveTo(30, 100);
+            ctx.lineTo(320, 100);
+            ctx.stroke();
+
+            console.log("Chart drawn for n =", n);
+        }
+
+        function calculateSteps() {
+            const n = parseInt(document.getElementById('comparisons').value);
+            if (isNaN(n) || n !== 1) {
+                document.getElementById('calc-result').textContent = 'Each guess uses 1 comparison.';
+                return;
+            }
+            document.getElementById('calc-result').textContent = `Each guess takes 1 step (O(1)).`;
+            drawChart(n);
+            console.log("Calculated steps for n =", n);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !isRunning && !document.getElementById('submitBtn').disabled) {
+                submitGuess();
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>
